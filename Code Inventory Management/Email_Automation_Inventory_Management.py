@@ -11,7 +11,9 @@ import Config_File_Inventory_Managment
 # Define your email configuration
 current_date = datetime.date.today()
 Log_date=current_date.strftime("%d%B%Y")
-log_file_path = fr"{File_Folder_Inventory_Managment.LogFolder}\ProcessLog_{Log_date}.log"
+full_path = os.path.realpath(__file__)
+directory_path = os.path.dirname(full_path)
+log_file_path = fr"{directory_path}\ProcessLog_{Log_date}.log"
 logging.basicConfig(filename=log_file_path, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 try:
     logging.info("Log In the Email Through Outlook")
