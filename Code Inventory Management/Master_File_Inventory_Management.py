@@ -96,6 +96,7 @@ try:
     # Create a newcolumn  Material Group Desc
     merged_dataMGD = MB52Dumpdf.merge(ZFI_ClosingStockdf.drop_duplicates(subset='Material'), on='Material', how='left')
     MB52Dumpdf['Mat.group desc'] = merged_dataMGD['Material Group Desc.']
+    
     output_file_path = rf"{Config_File_Inventory_Managment.OutputFolder}\MB52Dump.xlsx"
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='w') as writer:
         MB52Dumpdf.to_excel(writer,sheet_name='MB52', index=False)
