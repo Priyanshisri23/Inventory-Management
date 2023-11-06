@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 import traceback
 import logging
-import File_Folder_Inventory_Managment
+# import File_Folder_Inventory_Managment
 import Config_File_Inventory_Managment
 # Define your email configuration
 current_date = datetime.date.today()
@@ -20,8 +20,8 @@ try:
     class EmailConfig:
         EmailTo = Config_File_Inventory_Managment.EmailTo
         EmailCC = Config_File_Inventory_Managment.EmailCC
-        SMTPServer = 'smtp-mail.outlook.com'
-        SMTPPort = 587
+        SMTPServer = Config_File_Inventory_Managment.Smtpserver
+        SMTPPort = Config_File_Inventory_Managment.SmtpPort
         SMTPUsername = Config_File_Inventory_Managment.EmailFrom
         SMTPPassword = Config_File_Inventory_Managment.EmailPassword
 
