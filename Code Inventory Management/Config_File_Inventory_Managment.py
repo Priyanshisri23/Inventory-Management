@@ -14,7 +14,7 @@ logging.basicConfig(filename=log_file_path, level=logging.DEBUG, format='%(ascti
 try:
     logging.info(f"The Process has been Started...")
     logging.info(f"Searching for Config File on the Path")
-    ConfigFilePath=r"D:\All The Task\Python Project\Inventory Management\Config\ConfigFile_Inventory_Management.csv"
+    ConfigFilePath=r"D:\PriyanshiAgtech\Inventory Management Process\Config\ConfigFile_Inventory_Management.csv"
     if not os.path.exists(ConfigFilePath):
         ConfigFilePath=r"D:\All The Task\Python Project\Inventory Management\Template\ConfigFile_Inventory_Management.csv"
     logging.info("Config file exist in the folder")
@@ -39,6 +39,7 @@ try:
         DivisionSummaryFile = Read_JSON_Data['DivisionSummaryFile']
         AgeingMasterFile = Read_JSON_Data['AgeingMasterFile']
         MB52File = Read_JSON_Data['MB52File']
+        ZFIvsGLFile=Read_JSON_Data['ZFIvsGLFile']
         ZFI_ClosingStockFile = Read_JSON_Data['ZFI_ClosingStockFile']
         SLOC_nonproductivelocationFile = Read_JSON_Data['SLOC_nonproductivelocationFile']
         InHouseBhismaNeedleSheet = Read_JSON_Data['InHouseBhismaNeedleSheet']
@@ -48,6 +49,9 @@ try:
         EmailCC = Read_JSON_Data['EmailCC']
         EmailFrom = Read_JSON_Data['EmailFrom']
         EmailPassword = Read_JSON_Data['EmailPassword']
+        Smtpserver=Read_JSON_Data['Smtpserver']
+        SmtpPort=Read_JSON_Data['SmtpPort']
+
         logging.info("Read all details from Config File")
     except Exception as e:
         ErrorMessage = traceback.extract_tb(e.__traceback__)
