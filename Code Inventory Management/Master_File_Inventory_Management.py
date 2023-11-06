@@ -26,6 +26,7 @@ try:
     SLOC_nonproductivelocationdf = pd.read_excel(File_Folder_Inventory_Managment.SLOC_nonproductivelocationFilePath)
     lastQuarterInventorydf = pd.read_excel(File_Folder_Inventory_Managment.LastQuarterInventoryFilePath)
     ageing_masterdf = pd.read_excel(File_Folder_Inventory_Managment.AgeingMasterFilePath,header=1)
+    ZFIvsGLdf = pd.read_excel(File_Folder_Inventory_Managment.ZFIvsGLFilePath)
     print('start')
     logging.info('Prepared all input files into dataframe')
 
@@ -61,16 +62,11 @@ try:
     MB52Dumpdf['SKU & Valn Type'] = MB52Dumpdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Valan type from MCHA(SKU+Batch)']]), axis=1)
     
 
-    # =====================ZFI Closing Stock================
-    ZFI_ClosingStockdf['Concatenate(Plant+SKU+Batch)'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Plant'], row['Material'], row['Batch']]), axis=1)
-    ZFI_ClosingStockdf['Concatenate(SKU+Batch)'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Batch']]), axis=1)
-    ZFI_ClosingStockdf['Concatenate(SKU+Valuation type)'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Valuation Type']]), axis=1)
-    ZFI_ClosingStockdf['Concatenate(Mat desc+Valuation type)'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material description'], row['Valuation Type']]), axis=1)
-
-
+    # ===================================ZFI Closing Stock=====================================
     ZFI_ClosingStockdf['Plant SKU & Batch'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Plant'], row['Material'], row['Batch']]), axis=1)
     ZFI_ClosingStockdf['SKU & Batch'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Batch']]), axis=1)
     ZFI_ClosingStockdf['SKU & Valn Type'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Valuation Type']]), axis=1)
+    ZFI_ClosingStockdf['Concatenate(Mat desc+Valuation type)'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material description'], row['Valuation Type']]), axis=1)
     ZFI_ClosingStockdf['Rate per Unit']=ZFI_ClosingStockdf["Total Value"] / ZFI_ClosingStockdf["Total Stock"]
         
         
@@ -97,9 +93,63 @@ try:
     merged_dataMGD = MB52Dumpdf.merge(ZFI_ClosingStockdf.drop_duplicates(subset='Material'), on='Material', how='left')
     MB52Dumpdf['Mat.group desc'] = merged_dataMGD['Material Group Desc.']
     
+    # ==========================ZFI vs Gl Sheet working==========================================
+    data = {
+    'Particulars': ['RM / PM', 'WIP', 'FG'],
+    'Amt as per GL': "",  
+    'Amt as per ZFI': "", 
+    'Amt as per MB52': "",
+    'ZFI Vs GL': "", 
+    'MB52 Vs GL': "",
+}
+    
+    # Create Pivot table for ZFI_Closing_Stockdf
+    pivot_tableZFI = ZFI_ClosingStockdf.pivot_table(values='Total Value', index='Material type', aggfunc='sum')
+    pivot_tableZFI.reset_index(inplace=True)
+
+    # Create Pivot table for MB52Dumpdf
+    pivot_tableMB52 = MB52Dumpdf.pivot_table(
+        values='ZFI Value as of Jun23',
+        index='Material type',
+        aggfunc='sum'
+    )
+    
+    def categorize_material(material_type):
+        if str(material_type) in ['FERT', 'HAWA']:
+            return 'FG'
+        elif str(material_type) == 'HALB':
+            return 'WIP'
+        elif str(material_type).startswith('Z'):
+            return 'RM / PM'
+        else:
+            return 'Other'
+
+    pivot_tableZFI['Category'] = pivot_tableZFI['Material type'].map(categorize_material)
+    pivot_tableMB52['Category'] = pivot_tableMB52.index.map(categorize_material)
+    results = []
+    for particular in data['Particulars']:
+        filtered_df = ZFIvsGLdf[ZFIvsGLdf['Material Type'] == particular]
+        amt_as_per_gl = filtered_df['Amount'].sum() / 10**7
+        
+        ZFIfiltered_df = pivot_tableZFI[pivot_tableZFI['Category'] == particular]
+        amt_as_per_zfi = ZFIfiltered_df['Total Value'].sum() / 10**7
+        Mb52filtered_df = pivot_tableMB52[pivot_tableMB52['Category'] == particular]
+        amt_as_per_mb52 = Mb52filtered_df['ZFI Value as of Jun23'].sum() / 10**7
+        results.append({'Particulars': particular, 'Amt as per GL': amt_as_per_gl,'Amt as per ZFI':amt_as_per_zfi,'Amt as per MB52':amt_as_per_mb52})
+
+    result_df = pd.DataFrame(results)
+    result_df['ZFI Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per ZFI']
+    result_df['MB52 Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per MB52']
+    
+    
     output_file_path = rf"{Config_File_Inventory_Managment.OutputFolder}\MB52Dump.xlsx"
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='w') as writer:
         MB52Dumpdf.to_excel(writer,sheet_name='MB52', index=False)
+        ZFI_ClosingStockdf.to_excel(writer,sheet_name='ZFI_Closing_Stock', index=False)
+        ZFIvsGLdf.to_excel(writer, sheet_name='ZFIvsGL', index=False)
+        pivot_tableZFI.to_excel(writer, sheet_name='ZFIvsGL', startrow=len(ZFIvsGLdf) + 2, index=False)
+        pivot_tableMB52.to_excel(writer, sheet_name='ZFIvsGL', startrow=len(ZFIvsGLdf) + 2 + len(pivot_tableZFI) + 2)
+        result_df.to_excel(writer, sheet_name='ZFIvsGL', startcol=6, index=False)
 
     print("End Time",datetime.datetime.now())
     logging.info(f"Master File Process has Ended on: {datetime.datetime.now()}")
