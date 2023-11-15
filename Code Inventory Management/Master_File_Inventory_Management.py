@@ -5,29 +5,40 @@ import traceback
 import Config_File_Inventory_Managment
 import File_Folder_Inventory_Managment
 
-print("Start Time",datetime.datetime.now())
+print("Start Time : ",datetime.datetime.now())
 current_date = datetime.date.today()
 Log_date=current_date.strftime("%d%B%Y")
 
 try:
-    log_file_path = fr"{File_Folder_Inventory_Managment.LogFolder}\ProcessLog_{Log_date}.log"
-    logging.basicConfig(filename=log_file_path, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    Log_file_path = fr"{File_Folder_Inventory_Managment.LogFolder}\ProcessLog_{Log_date}.log"
+    logging.basicConfig(filename=Log_file_path, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info("Master File Process has been Started")
     
     MB52Dumpdf = pd.read_excel(File_Folder_Inventory_Managment.MB52FilePath,header=1)
+    print('mb52: ',datetime.datetime.now())
     mch1df = pd.read_excel(File_Folder_Inventory_Managment.mch1_v2_dateFilePath)
+    print('mch1 : ',datetime.datetime.now()) 
     mchadf = pd.read_excel(File_Folder_Inventory_Managment.MCHAFilePath)
+    print('mchadf:',datetime.datetime.now())
+    print(File_Folder_Inventory_Managment.ZFI_ClosingStockFilePath)
     ZFI_ClosingStockdf = pd.read_excel(File_Folder_Inventory_Managment.ZFI_ClosingStockFilePath,header=1)
+    print('ZFI_ClosingStockdf:',datetime.datetime.now())
     PriceListdf = pd.read_excel(File_Folder_Inventory_Managment.PriceListFilePath,header=1)
+    print('PriceListdf:',datetime.datetime.now())
     InHouseBhismaNeedledf = pd.read_excel(File_Folder_Inventory_Managment.BhismaFilePath,header=1,sheet_name=Config_File_Inventory_Managment.InHouseBhismaNeedleSheet)
     QNPLBhismaNeedledf = pd.read_excel(File_Folder_Inventory_Managment.BhismaFilePath,header=1,sheet_name=Config_File_Inventory_Managment.QNPLBhismaNeedleSheet)
     SutureBhismaNeedledf = pd.read_excel(File_Folder_Inventory_Managment.BhismaFilePath,header=1,sheet_name=Config_File_Inventory_Managment.SutureBhismaNeedleSheet)
+    print('Bhisma Needle :',datetime.datetime.now())
     DivisionSummarydf = pd.read_excel(File_Folder_Inventory_Managment.DivisionSummaryFilePath,header=2)
     SLOC_nonproductivelocationdf = pd.read_excel(File_Folder_Inventory_Managment.SLOC_nonproductivelocationFilePath)
-    lastQuarterInventorydf = pd.read_excel(File_Folder_Inventory_Managment.LastQuarterInventoryFilePath)
+    print('SLOC_nonproductivelocation :',datetime.datetime.now())
+    lastQuarterInventorydf = pd.read_excel(File_Folder_Inventory_Managment.LastQuarterInventoryFilePath,header=1)
+    print('Last Quarter Inventory :',datetime.datetime.now())
     ageing_masterdf = pd.read_excel(File_Folder_Inventory_Managment.AgeingMasterFilePath,header=1)
+    print('Ageing master: ',datetime.datetime.now())
     ZFIvsGLdf = pd.read_excel(File_Folder_Inventory_Managment.ZFIvsGLFilePath)
-    print('start')
+    print('ZFIvsGLdf:',datetime.datetime.now())
+    print('start :',datetime.datetime.now())
     logging.info('Prepared all input files into dataframe')
 
     # Column V (Total Stock Quantity) = Sum of column J to O 
@@ -55,6 +66,7 @@ try:
     # mcha  file   to get the “Valuation Type” column from MCHA file 
     merged_data = MB52Dumpdf.merge(mchadf.drop_duplicates(subset='SKU & Batch'), on='SKU & Batch', how='left')
     MB52Dumpdf['Valan type from MCHA(SKU+Batch)'] = merged_data['Valuation Type']
+    MB52Dumpdf['Valan type from MCHA(SKU+Batch)'] = MB52Dumpdf['Valan type from MCHA(SKU+Batch)'].fillna('NA')
 
     # Concatenate
     MB52Dumpdf['Plant Sku & Val Type'] = MB52Dumpdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Plant'],row['Material'], row['Valan type from MCHA(SKU+Batch)']]), axis=1)
@@ -91,7 +103,7 @@ try:
     MB52Dumpdf['ZFI Value as of Jun23'] = MB52Dumpdf['ZFI Rate'] * MB52Dumpdf['Total Stock Quantity']
     # Create a newcolumn  Material Group Desc
     merged_dataMGD = MB52Dumpdf.merge(ZFI_ClosingStockdf.drop_duplicates(subset='Material'), on='Material', how='left')
-    MB52Dumpdf['Mat.group desc'] = merged_dataMGD['Material Group Desc.']
+    MB52Dumpdf['Material Group Desc.'] = merged_dataMGD['Material Group Desc.']
     
     # ==========================ZFI vs Gl Sheet working==========================================
     data = {
@@ -141,9 +153,36 @@ try:
     result_df['ZFI Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per ZFI']
     result_df['MB52 Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per MB52']
     
+    # ======================================Under Valuation====================================
+    
+    MB52Dumpdf['Plant'] = MB52Dumpdf['Plant'].astype(str)
+    filtered_df = MB52Dumpdf[MB52Dumpdf['Plant'].isin(['1012','1014'])]
+    filteredundervaluation_df = filtered_df.loc[:, :'Material Group Desc.']    
+    
+    merged_dataa = []
+    for i, row in filteredundervaluation_df.iterrows():
+        PSBrevisedratematched=lastQuarterInventorydf[lastQuarterInventorydf['Plant SKU & Batch'] == row['Plant SKU & Batch']]
+        SBrevisedratematched=lastQuarterInventorydf[lastQuarterInventorydf['SKU & Batch'] == row['SKU & Batch']]
+        SVrevisedratematched=lastQuarterInventorydf[lastQuarterInventorydf['SKU & Valn Type'] == row['SKU & Valn Type']]
+        Mrevisedratematched=lastQuarterInventorydf[lastQuarterInventorydf['Material'] == row['Material']]
+        if not PSBrevisedratematched["Revised Rate"].empty:
+            row['Revised Rate'] = PSBrevisedratematched["Revised Rate"].values[0]
+        elif not SBrevisedratematched["Revised Rate"].empty:
+            row['Revised Rate'] = SBrevisedratematched["Revised Rate"].values[0]
+        elif not SVrevisedratematched["Revised Rate"].empty:
+            row['Revised Rate'] = SVrevisedratematched["Revised Rate"].values[0]
+        elif not Mrevisedratematched["Revised Rate"].empty:
+            row['Revised Rate'] = Mrevisedratematched["Revised Rate"].values[0]
+        else:
+            row['Revised Rate'] = row['ZFI Rate']
+        merged_dataa.append(row)
+    filteredundervaluation_df=pd.DataFrame(merged_dataa)
+    filteredundervaluation_df['Revised Value'] = filteredundervaluation_df['Revised Rate'] * filteredundervaluation_df['Total Stock Quantity']
+    filteredundervaluation_df['Under valn'] = filteredundervaluation_df['ZFI Value as of Jun23'] - filteredundervaluation_df['Revised Value']
     
     output_file_path = rf"{Config_File_Inventory_Managment.OutputFolder}\MB52Dump.xlsx"
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='w') as writer:
+        filteredundervaluation_df.to_excel(writer, sheet_name='Undervaluation', index=False)
         MB52Dumpdf.to_excel(writer,sheet_name='MB52', index=False)
         ZFI_ClosingStockdf.to_excel(writer,sheet_name='ZFI_Closing_Stock', index=False)
         ZFIvsGLdf.to_excel(writer, sheet_name='ZFIvsGL', index=False)
@@ -151,9 +190,12 @@ try:
         pivot_tableMB52.to_excel(writer, sheet_name='ZFIvsGL', startrow=len(ZFIvsGLdf) + 2 + len(pivot_tableZFI) + 2)
         result_df.to_excel(writer, sheet_name='ZFIvsGL', startcol=6, index=False)
 
-    print("End Time",datetime.datetime.now())
+    print("End Time : ",datetime.datetime.now())
     logging.info(f"Master File Process has Ended on: {datetime.datetime.now()}")
+    
 except Exception as e:
     ErrorMessage = traceback.extract_tb(e.__traceback__)
     line_number = ErrorMessage[-1][1]
     logging.error(f"Error in File & Folder message: {ErrorMessage} in line {line_number}")
+    print(e)
+    
