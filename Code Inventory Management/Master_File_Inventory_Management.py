@@ -264,6 +264,29 @@ try:
     filteredundervaluation_df['Under valn'] = filteredundervaluation_df['ZFI Value as of Jun23'] - \
                                               filteredundervaluation_df['Revised Value']
 
+    merged_data = MB52Dumpdf.merge(PriceListdf.drop_duplicates(subset='Material Group Desc.'), on='Material Group Desc.', how='left')
+    MB52Dumpdf['Over valuation v lookup of price list'] = merged_data['Material Group Desc.'].fillna('NA')
+    
+    # ======================Overvaluation=================================
+    Overvaluationfiltered_df = MB52Dumpdf[~MB52Dumpdf['Over valuation v lookup of price list'].isin(['NA','PAPER', 'Paper'])]
+    merged_data = Overvaluationfiltered_df.merge(PriceListdf.drop_duplicates(subset='Material'), on='Material', how='left')
+    Overvaluationfiltered_df.loc[:, 'Revised Rate'] = merged_data['Revised Rate'].fillna(Overvaluationfiltered_df['ZFI Rate'])
+    Overvaluationfiltered_df.loc[:, 'Revised Value'] = Overvaluationfiltered_df['Revised Rate'] * Overvaluationfiltered_df['Total Stock Quantity']
+    Overvaluationfiltered_df.loc[:, 'Overvaluation'] = Overvaluationfiltered_df['ZFI Value as of Jun23'] - Overvaluationfiltered_df['Revised Value']
+    # # Use .loc for assignment to avoid SettingWithCopyWarning
+    # Overvaluationfiltered_df.loc[:, 'Revised Rate'] = merged_data['Revised Rate']
+    # Overvaluationfiltered_df.loc[:, 'Revised Rate'].fillna(Overvaluationfiltered_df['ZFI Rate'], inplace=True)
+    # Overvaluationfiltered_df.loc[:, 'Revised Value'] = Overvaluationfiltered_df['Revised Rate'] * Overvaluationfiltered_df['Total Stock Quantity']
+    # Overvaluationfiltered_df.loc[:, 'Overvaluation'] = Overvaluationfiltered_df['ZFI Value as of Jun23'] - Overvaluationfiltered_df['Revised Value']
+
+    merged_data = MB52Dumpdf.merge(filteredundervaluation_df.drop_duplicates(subset='Plant SKU Batch & SL'), on='Plant SKU Batch & SL', how='left')
+    MB52Dumpdf.loc[:,'Revised Rate'] = merged_data['Revised Rate']
+    merged_data = MB52Dumpdf.merge(Overvaluationfiltered_df.drop_duplicates(subset='Plant SKU Batch & SL'), on='Plant SKU Batch & SL', how='left')
+    MB52Dumpdf.loc[:,'Revised Rate'] = merged_data['Revised Rate_y']
+    
+    MB52Dumpdf['ME Value as of Jun 23'] = MB52Dumpdf['Revised Rate'] * MB52Dumpdf['Total Stock Quantity']
+    MB52Dumpdf['ME Valn Adj'] = MB52Dumpdf['ME Value as of Jun 23'] - MB52Dumpdf['ZFI Value as of Jun23']
+    MB52Dumpdf['Material description & Type'] = MB52Dumpdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material Group Desc.'], row['Material type']]), axis=1)
     output_file_path = rf"{Config_File_Inventory_Managment.OutputFolder}\MB52Dump.xlsx"
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='w') as writer:
         MB52Dumpdf.to_excel(writer, sheet_name='MB52', index=False)
