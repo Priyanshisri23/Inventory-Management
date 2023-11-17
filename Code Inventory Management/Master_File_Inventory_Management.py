@@ -2,8 +2,8 @@ import pandas as pd
 import datetime
 import logging
 import traceback
-import time
 from tqdm import tqdm
+import warnings
 import Config_File_Inventory_Managment
 import File_Folder_Inventory_Managment
 
@@ -12,8 +12,10 @@ current_date = datetime.date.today()
 Log_date = current_date.strftime("%d%B%Y")
 
 try:
+    warnings.filterwarnings('ignore', category=pd.errors.SettingWithCopyWarning)
     Log_file_path = fr"{File_Folder_Inventory_Managment.LogFolder}\ProcessLog_{Log_date}.log"
     logging.basicConfig(filename=Log_file_path, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info("Process Started...")
     logging.info("Master File Process has been Started")
 
     # Dictionary to store variable names and corresponding file paths
@@ -34,6 +36,7 @@ try:
 
     for file_path, variable_name in tqdm(file_variable_mapping, desc="Reading files"):
         file_variable_dict[variable_name] = pd.read_excel(file_path, header=1)
+        logging.info(f"Read the {variable_name} file")
         print("variable_name----->", variable_name)
 
     # -----------------------------------------------------HEADER===0----------------------------------------
@@ -47,6 +50,7 @@ try:
 
     for file_path, variable_name in tqdm(additional_mappings, desc="Reading files"):
         file_variable_dict[variable_name] = pd.read_excel(file_path, header=0)
+        logging.info(f"Read the {variable_name} file")
         print("variable_name----->", variable_name)
 
     # -----------------------------------------------------HEADER===2----------------------------------------
@@ -55,52 +59,25 @@ try:
     ]
     for file_path, variable_name in tqdm(additional_mappings, desc="Reading files"):
         file_variable_dict[variable_name] = pd.read_excel(file_path, header=2)
+        logging.info(f"Read the {variable_name} file")
         print("variable_name----->", variable_name)
 
     # print("End Time", datetime.datetime.now())
 
     # print(file_variable_dict)
     MB52Dumpdf = file_variable_dict['MB52Dumpdf']
-    logging.info(f"Read the MB52Dumpdf file")
-    # MB52Dumpdf = int(MB52Dumpdf)
-    # print('type', type(MB52Dumpdf))
     ZFI_ClosingStockdf = file_variable_dict['ZFI_ClosingStockdf']
-    logging.info(f"Read the ZFI_ClosingStockdf file")
-    # ZFI_ClosingStockdf = int(ZFI_ClosingStockdf)
-    # print('type', type(ZFI_ClosingStockdf))
     PriceListdf = file_variable_dict['PriceListdf']
-    logging.info(f"Read the PriceListdf file")
-    # print('type', type(PriceListdf))
     InHouseBhismaNeedledf = file_variable_dict['InHouseBhismaNeedledf']
-    logging.info(f"Read the InHouseBhismaNeedledf file")
-    # print('type', type(InHouseBhismaNeedledf))
     QNPLBhismaNeedledf = file_variable_dict['QNPLBhismaNeedledf']
-    logging.info(f"Read the QNPLBhismaNeedledf file")
-    # print('type', type(QNPLBhismaNeedledf))
     SutureBhismaNeedledf = file_variable_dict['SutureBhismaNeedledf']
-    logging.info(f"Read the SutureBhismaNeedledf file")
-    # print('type', type(SutureBhismaNeedledf))
     ageing_masterdf = file_variable_dict['ageing_masterdf']
-    logging.info(f"Read the ageing_masterdf file")
-    # print('type', type(ageing_masterdf))
     mch1df = file_variable_dict['mch1df']
-    logging.info(f"Read the mch1df file")
-    # print('type', type(mch1df))
     mchadf = file_variable_dict['mchadf']
-    logging.info(f"Read the mch1df file")
-    # print('type', type(mchadf))
     SLOC_nonproductivelocationdf = file_variable_dict['SLOC_nonproductivelocationdf']
-    logging.info(f"Read the SLOC_nonproductivelocationdf file")
-    # print('type', type(SLOC_nonproductivelocationdf))
     lastQuarterInventorydf = file_variable_dict['lastQuarterInventorydf']
-    logging.info(f"Read the lastQuarterInventorydf file")
-    # print('type', type(lastQuarterInventorydf))
     ZFIvsGLdf = file_variable_dict['ZFIvsGLdf']
-    logging.info(f"Read the ZFIvsGLdf file")
-    # print('type', type(ZFIvsGLdf))
     DivisionSummarydf = file_variable_dict['DivisionSummarydf']
-    logging.info(f"Read the DivisionSummarydf file")
-    # print('type', type(DivisionSummarydf))
     logging.info('Prepared all input files into dataframe')
     print("-------------------------------------------------------------------------------------------------------------------")
     # Column V (Total Stock Quantity) = Sum of column J to O
@@ -149,6 +126,7 @@ try:
         [row['Material description'], row['Valan type from MCHA(SKU+Batch)']]), axis=1)
     MB52Dumpdf['SKU & Valn Type'] = MB52Dumpdf.apply(lambda row: ''.join(
         str(col) if pd.notnull(col) else '' for col in [row['Material'], row['Valan type from MCHA(SKU+Batch)']]), axis=1)
+    logging.info("Fetch Valuation Type value from MCHA file in MB52 file")
 
     # ===================================ZFI Closing Stock=====================================
     ZFI_ClosingStockdf['Plant SKU & Batch'] = ZFI_ClosingStockdf.apply(lambda row: ''.join(
@@ -181,6 +159,7 @@ try:
     # Create a newcolumn  Material Group Desc
     merged_dataMGD = MB52Dumpdf.merge(ZFI_ClosingStockdf.drop_duplicates(subset='Material'), on='Material', how='left')
     MB52Dumpdf['Material Group Desc.'] = merged_dataMGD['Material Group Desc.']
+    logging.info("Working for ZFI ClosingStock File")
 
     # ==========================ZFI vs Gl Sheet working==========================================
     data = {
@@ -218,7 +197,8 @@ try:
     pivot_tableZFI['Category'] = pivot_tableZFI['Material type'].map(categorize_material)
     pivot_tableMB52['Category'] = pivot_tableMB52.index.map(categorize_material)
     results = []
-    for particular in data['Particulars']:
+    # for particular in data['Particulars']:
+    for particular in tqdm(data['Particulars'], desc="ZFI vs Gl Sheet working"):
         filtered_df = ZFIvsGLdf[ZFIvsGLdf['Material Type'] == particular]
         amt_as_per_gl = filtered_df['Amount'].sum() / 10 ** 7
 
@@ -232,6 +212,7 @@ try:
     result_df = pd.DataFrame(results)
     result_df['ZFI Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per ZFI']
     result_df['MB52 Vs GL'] = result_df['Amt as per GL'] - result_df['Amt as per MB52']
+    logging.info("Working for ZFI vs GL Sheet")
 
     # ======================================Under Valuation====================================
 
@@ -240,7 +221,8 @@ try:
     filteredundervaluation_df = filtered_df.loc[:, :'Material Group Desc.']
 
     merged_dataa = []
-    for i, row in filteredundervaluation_df.iterrows():
+    # for i, row in filteredundervaluation_df.iterrows():
+    for i, row in tqdm(filteredundervaluation_df.iterrows(), desc="Undervaluation Sheet working"):
         PSBrevisedratematched = lastQuarterInventorydf[
             lastQuarterInventorydf['Plant SKU & Batch'] == row['Plant SKU & Batch']]
         SBrevisedratematched = lastQuarterInventorydf[lastQuarterInventorydf['SKU & Batch'] == row['SKU & Batch']]
@@ -261,43 +243,56 @@ try:
     filteredundervaluation_df = pd.DataFrame(merged_dataa)
     filteredundervaluation_df['Revised Value'] = filteredundervaluation_df['Revised Rate'] * filteredundervaluation_df[
         'Total Stock Quantity']
-    filteredundervaluation_df['Under valn'] = filteredundervaluation_df['ZFI Value as of Jun23'] - \
-                                              filteredundervaluation_df['Revised Value']
+    filteredundervaluation_df['Under valn'] = filteredundervaluation_df['ZFI Value as of Jun23'] - filteredundervaluation_df['Revised Value']
 
     merged_data = MB52Dumpdf.merge(PriceListdf.drop_duplicates(subset='Material Group Desc.'), on='Material Group Desc.', how='left')
     MB52Dumpdf['Over valuation v lookup of price list'] = merged_data['Material Group Desc.'].fillna('NA')
-    
+    logging.info("Working for Undervaluation Sheet")
+
     # ======================Overvaluation=================================
-    Overvaluationfiltered_df = MB52Dumpdf[~MB52Dumpdf['Over valuation v lookup of price list'].isin(['NA','PAPER', 'Paper'])]
-    merged_data = Overvaluationfiltered_df.merge(PriceListdf.drop_duplicates(subset='Material'), on='Material', how='left')
-    Overvaluationfiltered_df.loc[:, 'Revised Rate'] = merged_data['Revised Rate'].fillna(Overvaluationfiltered_df['ZFI Rate'])
+    Overvaluationfiltered_df = MB52Dumpdf[
+        ~MB52Dumpdf['Over valuation v lookup of price list'].isin(['NA', 'PAPER', 'Paper'])]
+    merged_data = Overvaluationfiltered_df.merge(PriceListdf.drop_duplicates(subset='Material'), on='Material',
+                                                 how='left')
+    Overvaluationfiltered_df.loc[:, 'Revised Rate'] = merged_data['Revised Rate'].fillna(
+        Overvaluationfiltered_df['ZFI Rate'])
     Overvaluationfiltered_df.loc[:, 'Revised Value'] = Overvaluationfiltered_df['Revised Rate'] * Overvaluationfiltered_df['Total Stock Quantity']
     Overvaluationfiltered_df.loc[:, 'Overvaluation'] = Overvaluationfiltered_df['ZFI Value as of Jun23'] - Overvaluationfiltered_df['Revised Value']
-    # # Use .loc for assignment to avoid SettingWithCopyWarning
-    # Overvaluationfiltered_df.loc[:, 'Revised Rate'] = merged_data['Revised Rate']
-    # Overvaluationfiltered_df.loc[:, 'Revised Rate'].fillna(Overvaluationfiltered_df['ZFI Rate'], inplace=True)
-    # Overvaluationfiltered_df.loc[:, 'Revised Value'] = Overvaluationfiltered_df['Revised Rate'] * Overvaluationfiltered_df['Total Stock Quantity']
-    # Overvaluationfiltered_df.loc[:, 'Overvaluation'] = Overvaluationfiltered_df['ZFI Value as of Jun23'] - Overvaluationfiltered_df['Revised Value']
 
-    merged_data = MB52Dumpdf.merge(filteredundervaluation_df.drop_duplicates(subset='Plant SKU Batch & SL'), on='Plant SKU Batch & SL', how='left')
-    MB52Dumpdf.loc[:,'Revised Rate'] = merged_data['Revised Rate']
-    merged_data = MB52Dumpdf.merge(Overvaluationfiltered_df.drop_duplicates(subset='Plant SKU Batch & SL'), on='Plant SKU Batch & SL', how='left')
-    MB52Dumpdf.loc[:,'Revised Rate'] = merged_data['Revised Rate_y']
-    
+    merged_data = MB52Dumpdf.merge(filteredundervaluation_df.drop_duplicates(subset='Plant SKU Batch & SL'),
+                                   on='Plant SKU Batch & SL', how='left')
+    MB52Dumpdf.loc[:, 'Revised Rate'] = merged_data['Revised Rate']
+    merged_data = MB52Dumpdf.merge(Overvaluationfiltered_df.drop_duplicates(subset='Plant SKU Batch & SL'),
+                                   on='Plant SKU Batch & SL', how='left')
+    MB52Dumpdf.loc[:, 'Revised Rate'] = merged_data['Revised Rate_y']
+
     MB52Dumpdf['ME Value as of Jun 23'] = MB52Dumpdf['Revised Rate'] * MB52Dumpdf['Total Stock Quantity']
     MB52Dumpdf['ME Valn Adj'] = MB52Dumpdf['ME Value as of Jun 23'] - MB52Dumpdf['ZFI Value as of Jun23']
-    MB52Dumpdf['Material description & Type'] = MB52Dumpdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material Group Desc.'], row['Material type']]), axis=1)
+    MB52Dumpdf['Material description & Type'] = MB52Dumpdf.apply(lambda row: ''.join(
+        str(col) if pd.notnull(col) else '' for col in [row['Material Group Desc.'], row['Material type']]), axis=1)
+    logging.info("Working for Undervaluation Sheet")
+
+
     output_file_path = rf"{Config_File_Inventory_Managment.OutputFolder}\MB52Dump.xlsx"
     with pd.ExcelWriter(output_file_path, engine='openpyxl', mode='w') as writer:
         MB52Dumpdf.to_excel(writer, sheet_name='MB52', index=False)
+        logging.info("MB52 Sheet Created")
         ZFI_ClosingStockdf.to_excel(writer, sheet_name='ZFI_Closing_Stock', index=False)
+        logging.info("ZFI_Closing_Stock Sheet Created")
         ZFIvsGLdf.to_excel(writer, sheet_name='ZFIvsGL', index=False)
         pivot_tableZFI.to_excel(writer, sheet_name='ZFIvsGL', startrow=len(ZFIvsGLdf) + 2, index=False)
         pivot_tableMB52.to_excel(writer, sheet_name='ZFIvsGL', startrow=len(ZFIvsGLdf) + 2 + len(pivot_tableZFI) + 2)
         result_df.to_excel(writer, sheet_name='ZFIvsGL', startcol=6, index=False)
+        logging.info("ZFIvsGL Sheet Created")
+        filteredundervaluation_df.to_excel(writer, sheet_name='Undervaluation', index=False)
+        logging.info("Undervaluation Sheet Created")
+        Overvaluationfiltered_df.to_excel(writer, sheet_name='Overvaluation', index=False)
+        logging.info("Overvaluation Sheet Created")
+
 
     print("End Time : ", datetime.datetime.now())
     logging.info(f"Master File Process has Ended on: {datetime.datetime.now()}")
+    logging.info("Process End...")
 
 except Exception as e:
     ErrorMessage = traceback.extract_tb(e.__traceback__)
