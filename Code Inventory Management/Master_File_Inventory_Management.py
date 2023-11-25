@@ -327,7 +327,16 @@ try:
     MB52Dumpdf.loc[MB52Dumpdf['Plant'] == 1082, 'Division'] = 'CareNow'
     
     MB52Dumpdf['Material description & Type'] = MB52Dumpdf.apply(lambda row: ''.join(str(col) if pd.notnull(col) else '' for col in [row['Material Group Desc.'], row['Material type']]), axis=1)
-    #--------------------------------------------------------------------------------------------
+    #--------------------------------MB52-----------------------------------------------------
+    merged_data = MB52Dumpdf.merge(lastQuarterInventorydf.drop_duplicates(subset='Material'),on='Material', how='left')
+    row['Needle Check SLOB (basis Mar/Bhisma file)'] = merged_data["SLOC"]
+    
+    merged_bhisma_df = pd.concat([InHouseBhismaNeedledf, QNPLBhismaNeedledf, SutureBhismaNeedledf], ignore_index=True)
+    merged_data = MB52Dumpdf.merge(merged_bhisma_df.drop_duplicates(subset='Needle Code '),left_on='Material', right_on ='Needle Code ', how='left')
+    MB52Dumpdf['Needle check Conc(Bhisma file)'] = merged_data["Remarks "]
+    
+    
+    
     merged_data = MB52Dumpdf.merge(DivisionSummarydf.drop_duplicates(subset='SLoc'), right_on='SLoc', left_on='Storage location', how='left')
     MB52Dumpdf['SLOC'] = merged_data['SLoc']
     MB52Dumpdf['Final Rate'] = MB52Dumpdf['Revised Rate']
