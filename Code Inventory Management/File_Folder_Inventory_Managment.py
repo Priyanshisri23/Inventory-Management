@@ -73,6 +73,8 @@ try:
         SLOC_nonproductivelocationFilePath = construct_file_path(
             Config_File_Inventory_Managment.SLOC_nonproductivelocationFile)
         BhismaFilePath = construct_file_path(Config_File_Inventory_Managment.Bhismafile)
+        ZFIvsGLFilePath=construct_file_path(Config_File_Inventory_Managment.ZFIvsGLFile)
+        CompiledPRFilePath = construct_file_path(Config_File_Inventory_Managment.PRCompileFile)
         logging.info('Renaming the Files Name')
         file_paths = {
             MB52FilePath: 'MB52 File',
@@ -84,7 +86,9 @@ try:
             AgeingMasterFilePath: 'Ageing Master File',
             ZFI_ClosingStockFilePath: 'ZFI_Closing Stock File',
             SLOC_nonproductivelocationFilePath: 'SLOC_nonproductivelocation File',
-            BhismaFilePath: 'All Plant Needle (Bhisma) File'
+            BhismaFilePath: 'All Plant Needle (Bhisma) File',
+            ZFIvsGLFilePath:'ZFIvsGL File',
+            CompiledPRFilePath: 'Compiled PR File'
         }
 
         for file_path, description in file_paths.items():
