@@ -14,7 +14,7 @@ logging.basicConfig(filename=log_file_path, level=logging.DEBUG, format='%(ascti
 try:
     logging.info(f"The Process has been Started...")
     logging.info(f"Searching for Config File on the Path")
-    ConfigFilePath=r"D:\PriyanshiAgtech\Inventory Management Process\Config\ConfigFile_Inventory_Management.csv"
+    ConfigFilePath=r"C:\Users\deepak.soni\PycharmProjects\pythonProject\FristPro\Inventory Management\Config\ConfigFile_Inventory_Management.csv"
     if not os.path.exists(ConfigFilePath):
         ConfigFilePath=r"D:\All The Task\Python Project\Inventory Management\Template\ConfigFile_Inventory_Management.csv"
     logging.info("Config file exist in the folder")
@@ -45,6 +45,7 @@ try:
         InHouseBhismaNeedleSheet = Read_JSON_Data['InHouseBhismaNeedleSheet']
         QNPLBhismaNeedleSheet = Read_JSON_Data['QNPLBhismaNeedleSheet']
         SutureBhismaNeedleSheet = Read_JSON_Data['SutureBhismaNeedleSheet']
+        PRCompileFile = Read_JSON_Data['PRCompileFile']
         EmailTo = Read_JSON_Data['EmailTo']
         EmailCC = Read_JSON_Data['EmailCC']
         EmailFrom = Read_JSON_Data['EmailFrom']
